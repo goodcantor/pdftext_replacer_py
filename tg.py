@@ -1,4 +1,9 @@
-import fitz  
+import logging
+import fitz 
+from aiogram import Bot, Dispatcher, executor, types
+from aiogram.types import Message
+from fpdf import FPDF
+
 
 def replace_text_in_pdf(input_pdf_path, output_pdf_path, replacements):
     pdf_document = fitz.open(input_pdf_path)
@@ -51,9 +56,42 @@ replacements = [
     ("${seventh}", 'p. 15 234,23'),
     ("${result}", 'p. 13 234,23'),
 ]
-updated_replacements = [(item[0], input(f"Enter a value for {item[0]}: ")) for item in replacements]
-updated_file_name = updated_replacements[0][1] + '_КП.pdf'
-
 file_name = replacements[0][1] + '_КП.pdf'
+input_pdf_path = replacements[0][1] + '_КП.pdf'
 
-replace_text_in_pdf('input.pdf', file_name, replacements)
+
+# Конфигурация логирования
+logging.basicConfig(level=logging.INFO)
+
+# Инициализация бота и диспетчера
+TOKEN = '6729706623:AAFlZ_J9LFw9JKhgwO10JjW57pTUr2MHMUI'  
+bot = Bot(token=TOKEN)
+dp = Dispatcher(bot)
+@dp.message_handler(commands=['start'])
+async def send_welcome(message: types.Message):
+    await message.reply("Привет! Пожалуйста, введите текст, разделенный запятыми, который вы хотите использовать для замены в PDF.")
+
+@dp.message_handler(content_types=['text'])
+async def text_to_pdf(message: types.Message):
+    user_text = message.text
+    text_items = user_text.split(',')
+
+    if len(text_items) != len(replacements):
+        await message.reply("Количество введенных данных не соответствует необходимому количеству замен.")
+        return
+
+    new_replacements = [(pair[0], text.strip()) for pair, text in zip(replacements, text_items)]
+    output_pdf_path = f'{message.from_user.id}_output.pdf'
+
+    replace_text_in_pdf(input_pdf_path, output_pdf_path, new_replacements)
+
+    with open(output_pdf_path, "rb") as pdf_file:
+        await bot.send_document(message.chat.id, document=pdf_file)
+
+    try:
+        os.remove(output_pdf_path)
+    except Exception as e:
+        logging.error("Ошибка при удалении файла: %s", e)
+
+if __name__ == '__main__':
+    executor.start_polling(dp, skip_updates=True)
