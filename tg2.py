@@ -5,22 +5,18 @@ from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import Message
 from fpdf import FPDF
 
-# bold = "bold.ttf"
-# print(bold)
-# print(open(bold))
 
 def replace_text_in_pdf(input_pdf_path, output_pdf_path, replacements):
     pdf_document = fitz.open(input_pdf_path)
     
     regular = "regular.ttf"
     bold = "bold.ttf"
-
     
     
     for page_number in range(len(pdf_document)):
         page = pdf_document[page_number]
-        page.insert_font(fontname="mont", fontfile="./bold.ttf")
-        page.insert_font(fontname="montBold", fontfile="./regular.ttf")
+        # page.insert_font(fontname="F0", fontfile=bold)
+        # page.insert_font(fontname="F1", fontfile=regular)
         
         for search_text, replacement_text in replacements:
             text_instances = page.search_for(search_text)
@@ -34,11 +30,10 @@ def replace_text_in_pdf(input_pdf_path, output_pdf_path, replacements):
                 
                 
                 if ((search_text == "${client}") or (search_text == "${date}") or (search_text == "${result}")):
-                  # font=fitz.Font("hebo")
-                  # font = fitz.Font(fontfile=bold)
+                  font=fitz.Font(fontname="F0", fontfile=bold)
                   
-                  # text_length = font.text_length(replacement_text, 6.65)
-                  text_length = 12
+                  
+                  text_length = font.text_length(replacement_text, 6.65)
                   
                   text_vertical_center = (inst[1] + inst[3]) / 2                
                   horizontal_position = inst[0] + 82 - (text_length / 2)
@@ -49,32 +44,28 @@ def replace_text_in_pdf(input_pdf_path, output_pdf_path, replacements):
                   
                   new_position = (horizontal_position, text_vertical_center + 3)  
                   
-                  # page.insert_font(fontname="F0", fontbuffer=font.buffer)
+                  page.insert_font(fontname="F0", fontbuffer=font.buffer)
                   if (search_text == "${result}"):
-                    page.insert_textbox(fitz.Rect(1,380,595,842), replacement_text, fontsize=6.65, fontname='mont', color=(1, 1, 1))    
+                    page.insert_text(new_position, replacement_text, fontsize=6.65, fontname='F0', color=(1, 1, 1))
+                        
                   else: 
-                    page.insert_textbox(fitz.Rect(1,380,595,842), replacement_text, fontsize=6.65, fontname='mont')         
-                    # page.insert_text(new_position, replacement_text, fontsize=6.65, fontname='mont')         
+                    page.insert_text(new_position, replacement_text, fontsize=6.65, fontname='F0')         
                       
                 else: 
-                  # font=fitz.Font("helv")
-                  # font = fitz.Font(fontbuffer=regular)
+                  font=fitz.Font(fontname="F1", fontfile=regular)
                   
-                  # text_length = font.text_length(replacement_text, 6.65)
-                  text_length = 12
-
+                  text_length = font.text_length(replacement_text, 6.65)
                   
                   text_vertical_center = (inst[1] + inst[3]) / 2                
                   horizontal_position = inst[0] + 82 - (text_length / 2)
                   
                   new_position = (horizontal_position, text_vertical_center + 3)    
-                  # page.insert_font(fontname="F1", fontbuffer=font.buffer)
+                  page.insert_font(fontname="F1", fontbuffer=font.buffer)
 
-                  page.insert_text(new_position, replacement_text, fontsize=6.65, fontname='mont')
+                  page.insert_text(new_position, replacement_text, fontsize=6.65, fontname='F1')
                   
 
 
-    pdf_document.subset_fonts()
     pdf_document.save(output_pdf_path)
     pdf_document.close()
     print(f"PDF text replaced and saved as '{output_pdf_path}'")
