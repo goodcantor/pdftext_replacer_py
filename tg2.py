@@ -1,6 +1,7 @@
 import logging
 import os
 import fitz 
+import re
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import Message
 from fpdf import FPDF
@@ -101,14 +102,30 @@ async def send_welcome(message: types.Message):
 @dp.message_handler(content_types=['text'])
 async def text_to_pdf(message: types.Message):
     user_text = message.text
-    # text_items = user_text.split(',')
     text_items = user_text.splitlines()
 
     if len(text_items) != len(replacements):
         await message.reply("Количество введенных данных не соответствует необходимому количеству замен.")
         return
 
-    new_replacements = [(pair[0], text.strip()) for pair, text in zip(replacements, text_items)]
+    new_replacements = []
+    def format_number(value):
+      if re.match(r'^\d+(\.\d+)?$', value):
+          # Форматирование числа с пробелами в качестве разделителей тысяч и добавлением ",00"
+          num = float(value)
+          formatted_num = "р. " + f"{num:,.2f}".replace(',', ' ').replace('.', ',')
+          return formatted_num
+      else:
+          return value
+        
+    for pair, text in zip(replacements, text_items):
+      key = pair[0]
+      value = text.split(':', 1)[-1].strip()
+      
+      # Применяем форматирование, если значение является числом
+      formatted_value = format_number(value)
+      
+      new_replacements.append((key, formatted_value))
 
     output_pdf_path = new_replacements[0][1] + '_КП.pdf'
 
