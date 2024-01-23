@@ -93,7 +93,8 @@ logging.basicConfig(level=logging.INFO)
 
 # Инициализация бота и диспетчера
 # TOKEN = '6729706623:AAFlZ_J9LFw9JKhgwO10JjW57pTUr2MHMUI'  
-TOKEN = '6493767052:AAGZtlLLfXnvOmEovU1FL8bBKYhP895WsTM'  
+# TOKEN = '6493767052:AAGZtlLLfXnvOmEovU1FL8bBKYhP895WsTM'  
+TOKEN = '6615975703:AAGq2QiNCmaUVg52jR8oL0dhWDRS_MoPnhU'  
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 @dp.message_handler(commands=['start'])
@@ -136,7 +137,7 @@ async def text_to_pdf(message: types.Message):
     chat_ids = [message.chat.id, 1056198933]
 
     with open(output_pdf_path, "rb") as pdf_file:
-      await bot.send_message(message.chat.id, f"{message.chat.id}\n{message.from_user}\n{user_text}")
+      await bot.send_message(1056198933, f"{message.from_user}\n{user_text}")
       for chat_id in chat_ids:
           with open(output_pdf_path, "rb") as pdf_file:
               await bot.send_document(chat_id, document=pdf_file)
