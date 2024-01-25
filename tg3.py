@@ -140,7 +140,7 @@ async def process_replacements(text_items, user, chat_id):
             logging.error("Ошибка при удалении файла: %s", e)
 
 
-ALLOWED_USER_IDS = [12345, 67890, 700326689, 1056198933]  # Замените этими значениями реальные ID пользователей
+ALLOWED_USER_IDS = [189684105, 36995430, 700326689, 1056198933]  # Замените этими значениями реальные ID пользователей
 
 # Функция проверки пользователя
 def is_user_allowed(user_id):
