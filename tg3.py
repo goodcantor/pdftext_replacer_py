@@ -4,15 +4,23 @@ import fitz
 import re
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import Message, ChatType
-from fpdf import FPDF
 
 
 def replace_text_in_pdf(input_pdf_path, output_pdf_path, replacements):
+    print(f"Starting PDF modification: {input_pdf_path} -> {output_pdf_path}")
+    
+    if not os.path.exists(input_pdf_path):
+        print(f"Error: Input PDF not found at {input_pdf_path}")
+        raise FileNotFoundError(f"Input PDF not found: {input_pdf_path}")
+        
     pdf_document = fitz.open(input_pdf_path)
+    print(f"Opened PDF document with {len(pdf_document)} pages")
     
     regular = "regular.ttf"
     bold = "bold.ttf"
     
+    if not os.path.exists(regular) or not os.path.exists(bold):
+        print(f"Warning: Font files check - regular exists: {os.path.exists(regular)}, bold exists: {os.path.exists(bold)}")
     
     for page_number in range(len(pdf_document)):
         page = pdf_document[page_number]
@@ -66,6 +74,7 @@ def replace_text_in_pdf(input_pdf_path, output_pdf_path, replacements):
 
 
     pdf_document.save(output_pdf_path)
+    print(f"Saved modified PDF to {output_pdf_path}")
     pdf_document.close()
     print(f"PDF text replaced and saved as '{output_pdf_path}'")
 
@@ -118,26 +127,52 @@ def format_number(value):
 
 
 async def process_replacements(text_items, user, chat_id):
+    print(f"Starting process_replacements with {len(text_items)} items for chat_id: {chat_id}")
+    
     if len(text_items) != len(replacements):
-        # await bot.send_message(chat_id, "Количество введенных данных не соответствует необходимому количеству замен.")
+        print(f"Error: Expected {len(replacements)} items, got {len(text_items)}")
+        await bot.send_message(chat_id, "Количество введенных данных не соответствует необходимому количеству замен.")
         return
 
     new_replacements = [(key, format_number(text.split(':', 1)[-1].strip()))
                         for (key, _), text in zip(replacements, text_items)]
-
+    
+    print(f"Created new_replacements: {new_replacements}")
     output_pdf_path = new_replacements[0][1] + '_КП.pdf'
-    # Здесь должна быть функция replace_text_in_pdf, которая заменяет текст в PDF
-    replace_text_in_pdf(input_pdf_path, output_pdf_path, new_replacements)
+    print(f"Output PDF path: {output_pdf_path}")
 
     try:
-        with open(output_pdf_path, "rb") as pdf_file: 
-            await bot.send_message(1056198933, f"{user.full_name}\n{' '.join(text_items)}")
-            await bot.send_document(chat_id, document=pdf_file)
+        replace_text_in_pdf(input_pdf_path, output_pdf_path, new_replacements)
+        print("PDF generation completed")
+
+        if not os.path.exists(output_pdf_path):
+            print(f"Error: Generated PDF file not found at {output_pdf_path}")
+            await bot.send_message(chat_id, "Ошибка: Не удалось создать PDF файл")
+            return
+
+        print(f"PDF file size: {os.path.getsize(output_pdf_path)} bytes")
+
+        try:
+            with open(output_pdf_path, "rb") as pdf_file:
+                print("Sending notification to admin")
+                await bot.send_message(1056198933, f"{user.full_name}\n{' '.join(text_items)}")
+                
+                print("Sending PDF document")
+                await bot.send_document(chat_id, document=pdf_file)
+                print("PDF sent successfully")
+        except Exception as e:
+            print(f"Error sending PDF: {str(e)}")
+            await bot.send_message(chat_id, f"Ошибка при отправке файла: {str(e)}")
+    except Exception as e:
+        print(f"Error in PDF processing: {str(e)}")
+        await bot.send_message(chat_id, f"Ошибка при обработке PDF: {str(e)}")
     finally:
         try:
-            os.remove(output_pdf_path)
+            if os.path.exists(output_pdf_path):
+                os.remove(output_pdf_path)
+                print(f"Temporary PDF file removed: {output_pdf_path}")
         except Exception as e:
-            logging.error("Ошибка при удалении файла: %s", e)
+            print(f"Error removing temporary file: {str(e)}")
 
 
 ALLOWED_USER_IDS = [189684105, 36995430, 700326689, 1056198933, 284867763]  
@@ -168,3 +203,4 @@ async def text_to_pdf_group(message: types.Message):
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
+    

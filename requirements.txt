@@ -1,0 +1,4 @@
+aiogram==2.23.1
+fitz==0.0.1.dev2
+fpdf==1.7.2
+fpdf2==2.7.9
