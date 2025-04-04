@@ -1,4 +1,4 @@
-aiogram==2.23.1
-fitz==0.0.1.dev2
-fpdf==1.7.2
-fpdf2==2.7.9
+aiogram==2.25.1
+PyMuPDF==1.23.7
+python-dotenv==1.0.0
+aiohttp==3.8.5

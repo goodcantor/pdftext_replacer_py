@@ -7,20 +7,37 @@ from aiogram.types import Message, ChatType
 
 
 def replace_text_in_pdf(input_pdf_path, output_pdf_path, replacements):
-    print(f"Starting PDF modification: {input_pdf_path} -> {output_pdf_path}")
+    logging.info(f"Starting PDF modification: {input_pdf_path} -> {output_pdf_path}")
+    logging.info(f"Current working directory: {os.getcwd()}")
     
-    if not os.path.exists(input_pdf_path):
-        print(f"Error: Input PDF not found at {input_pdf_path}")
-        raise FileNotFoundError(f"Input PDF not found: {input_pdf_path}")
-        
-    pdf_document = fitz.open(input_pdf_path)
-    print(f"Opened PDF document with {len(pdf_document)} pages")
-    
+    # Проверка наличия шрифтов
     regular = "regular.ttf"
     bold = "bold.ttf"
     
-    if not os.path.exists(regular) or not os.path.exists(bold):
-        print(f"Warning: Font files check - regular exists: {os.path.exists(regular)}, bold exists: {os.path.exists(bold)}")
+    font_paths = {
+        'regular': os.path.abspath(regular),
+        'bold': os.path.abspath(bold)
+    }
+    
+    for font_name, font_path in font_paths.items():
+        if not os.path.exists(font_path):
+            logging.error(f"Font file not found: {font_path}")
+            raise FileNotFoundError(f"Font file {font_name} not found at {font_path}")
+    
+    # Проверка входного файла
+    input_pdf_absolute = os.path.abspath(input_pdf_path)
+    if not os.path.exists(input_pdf_absolute):
+        logging.error(f"Input PDF not found at {input_pdf_absolute}")
+        raise FileNotFoundError(f"Input PDF not found: {input_pdf_absolute}")
+
+    # Проверка прав на запись в директорию для выходного файла
+    output_dir = os.path.dirname(os.path.abspath(output_pdf_path))
+    if not os.access(output_dir, os.W_OK):
+        logging.error(f"No write permission in output directory: {output_dir}")
+        raise PermissionError(f"No write permission in directory: {output_dir}")
+
+    pdf_document = fitz.open(input_pdf_path)
+    print(f"Opened PDF document with {len(pdf_document)} pages")
     
     for page_number in range(len(pdf_document)):
         page = pdf_document[page_number]
@@ -127,45 +144,50 @@ def format_number(value):
 
 
 async def process_replacements(text_items, user, chat_id):
-    print(f"Starting process_replacements with {len(text_items)} items for chat_id: {chat_id}")
-    
-    if len(text_items) != len(replacements):
-        print(f"Error: Expected {len(replacements)} items, got {len(text_items)}")
-        await bot.send_message(chat_id, "Количество введенных данных не соответствует необходимому количеству замен.")
-        return
-
-    new_replacements = [(key, format_number(text.split(':', 1)[-1].strip()))
-                        for (key, _), text in zip(replacements, text_items)]
-    
-    print(f"Created new_replacements: {new_replacements}")
-    output_pdf_path = new_replacements[0][1] + '_КП.pdf'
-    print(f"Output PDF path: {output_pdf_path}")
-
     try:
-        replace_text_in_pdf(input_pdf_path, output_pdf_path, new_replacements)
-        print("PDF generation completed")
-
-        if not os.path.exists(output_pdf_path):
-            print(f"Error: Generated PDF file not found at {output_pdf_path}")
-            await bot.send_message(chat_id, "Ошибка: Не удалось создать PDF файл")
+        logging.info(f"Starting process_replacements with {len(text_items)} items for chat_id: {chat_id}")
+        logging.info(f"Current working directory: {os.getcwd()}")
+        
+        if len(text_items) != len(replacements):
+            logging.error(f"Expected {len(replacements)} items, got {len(text_items)}")
+            await bot.send_message(chat_id, "Количество введенных данных не соответствует необходимому количеству замен.")
             return
 
-        print(f"PDF file size: {os.path.getsize(output_pdf_path)} bytes")
+        new_replacements = [(key, format_number(text.split(':', 1)[-1].strip()))
+                          for (key, _), text in zip(replacements, text_items)]
+        
+        output_pdf_path = new_replacements[0][1] + '_КП.pdf'
+        logging.info(f"Output PDF path: {output_pdf_path}")
 
         try:
-            with open(output_pdf_path, "rb") as pdf_file:
-                print("Sending notification to admin")
-                await bot.send_message(1056198933, f"{user.full_name}\n{' '.join(text_items)}")
+            replace_text_in_pdf(input_pdf_path, output_pdf_path, new_replacements)
+            logging.info("PDF generation completed successfully")
+            
+            if not os.path.exists(output_pdf_path):
+                logging.error(f"Generated PDF file not found at {output_pdf_path}")
+                await bot.send_message(chat_id, "Ошибка: Не удалось создать PDF файл")
+                return
                 
-                print("Sending PDF document")
-                await bot.send_document(chat_id, document=pdf_file)
-                print("PDF sent successfully")
+            file_size = os.path.getsize(output_pdf_path)
+            logging.info(f"Generated PDF file size: {file_size} bytes")
+
+            try:
+                with open(output_pdf_path, "rb") as pdf_file:
+                    print("Sending notification to admin")
+                    await bot.send_message(1056198933, f"{user.full_name}\n{' '.join(text_items)}")
+                    
+                    print("Sending PDF document")
+                    await bot.send_document(chat_id, document=pdf_file)
+                    print("PDF sent successfully")
+            except Exception as e:
+                print(f"Error sending PDF: {str(e)}")
+                await bot.send_message(chat_id, f"Ошибка при отправке файла: {str(e)}")
         except Exception as e:
-            print(f"Error sending PDF: {str(e)}")
-            await bot.send_message(chat_id, f"Ошибка при отправке файла: {str(e)}")
+            logging.exception("Error in PDF processing")
+            await bot.send_message(chat_id, f"Ошибка при обработке PDF: {str(e)}")
     except Exception as e:
-        print(f"Error in PDF processing: {str(e)}")
-        await bot.send_message(chat_id, f"Ошибка при обработке PDF: {str(e)}")
+        logging.exception("Error in process_replacements")
+        await bot.send_message(chat_id, f"Произошла ошибка при обработке: {str(e)}")
     finally:
         try:
             if os.path.exists(output_pdf_path):
